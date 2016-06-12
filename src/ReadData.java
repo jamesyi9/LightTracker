@@ -16,6 +16,10 @@ public class ReadData
 		BufferedReader fileReader = Files.newBufferedReader(filePath);
 		List<String> inputStrings = new ArrayList<String>();
 
+		double[] arimaInput = new double[96];
+		int[] arimaOutput;
+		double[] predictionData = new double[96];
+
 		try
 		{
 			String fileLine = null;
@@ -48,6 +52,31 @@ public class ReadData
 
 				output.add(dataPoints);
 			}
+
+			// These for-loops average the current days for ARIMA
+			// This is done because ARIMA can only take in one dataset
+			for (int x = 0; x < 96; x++)
+			{
+				arimaInput[x] = 0;
+
+				for (int y = 0; y < days; y++)
+				{
+					arimaInput[x] += output.get(y)[x];
+				}
+
+				arimaInput[x] = arimaInput[x] / days;
+			}
+
+			// TODO: Fix Arima
+			ARIMA prediction = new ARIMA(arimaInput);
+			arimaOutput = prediction.getARIMAmodel(); 
+
+			for (int c = 0; c < 96; c++)
+			{
+				predictionData[c] = (double)arimaOutput[c];
+			}
+
+			output.add(predictionData);
 		}
 		catch (IOException x)
 		{
