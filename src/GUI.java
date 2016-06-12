@@ -41,11 +41,11 @@ import org.jfree.ui.NumberCellRenderer;
 @SuppressWarnings("serial")
 public class GUI extends JFrame implements ActionListener
 {
-	private static GraphPanel theGraph;
-	private static JButton loadButton;
-	private static JButton exitButton;
-	private static JFileChooser fileChooser;
-	private static List<double[]> sunData = new ArrayList<double[]>();
+	private GraphPanel theGraph;
+	private JButton loadButton;
+	private JButton exitButton;
+	private JFileChooser fileChooser;
+	private List<double[]> sunData = new ArrayList<double[]>();
 
 	public GUI()
 	{
@@ -64,15 +64,16 @@ public class GUI extends JFrame implements ActionListener
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 
-	private static class GraphPanel extends JPanel implements ChartChangeListener
+	private class GraphPanel extends JPanel implements ChartChangeListener
 	{
 		private int seriesCount = 0;
 		private TimeSeriesCollection[] datasets = new TimeSeriesCollection[seriesCount];
 		private TimeSeries[] series = new TimeSeries[seriesCount];
 		private ChartPanel chartPanel;
 		private DataTableModel model;
-
 		private XYPlot plot;
+		private JTable localTable;
+		private boolean ignoreChange;
 
 		public GraphPanel()
 		{
@@ -91,24 +92,12 @@ public class GUI extends JFrame implements ActionListener
 			localPanel2.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
 			model = new DataTableModel(seriesCount);
-
-			Object localObject;
-
-			/*
-			for (int i = 0; i < seriesCount; i++)
-			{
-				localObject = (XYPlot)localFreeChart.getPlot();
-				model.setValueAt(((XYPlot)localObject).getDataset(i).getSeriesKey(0), i, 0);
-				model.setValueAt(new Double("0.00"), i, 1);
-				model.setValueAt(new Double("0.00"), i, 2);
-			}
-			*/
-
-			JTable localTable = new JTable(model);
-			localObject = new DateCellRenderer(new SimpleDateFormat("HH:mm:ss (hh:mm:ss aa)"));
+			localTable = new JTable(model);
+			Object localObject = new DateCellRenderer(new SimpleDateFormat("HH:mm:ss (hh:mm:ss aa)"));
 			NumberCellRenderer localRenderer = new NumberCellRenderer();
 			localTable.getColumnModel().getColumn(1).setCellRenderer((TableCellRenderer)localObject);
 			localTable.getColumnModel().getColumn(2).setCellRenderer(localRenderer);
+
 			localPanel2.add(new JScrollPane(localTable));
 			localPanel2.add(new GUI.ButtonPanel(), "East");
 			localPanel1.add(localPanel2, "South");
@@ -123,17 +112,6 @@ public class GUI extends JFrame implements ActionListener
 			JFreeChart output = ChartFactory.createTimeSeriesChart(null, time, value, null, true, true, false);
 			plot = (XYPlot)output.getPlot();
 
-			// XYDataset[] datasetArray = new XYDataset[seriesCount];
-
-			/*
-			for (int i = 0; i < seriesCount; i++)
-			{
-				datasetArray[i] = createDataset(i, "Day " + (i + 1), 100.0 + i * 200.0, new Minute(), 60);
-				plot.setDataset(i, datasetArray[i]);
-				plot.setRenderer(i, new XYLineAndShapeRenderer(true, false));
-			}
-			*/
-
 			output.addChangeListener(this);
 			plot.setOrientation(PlotOrientation.VERTICAL);
 			plot.setDomainCrosshairVisible(true);
@@ -144,18 +122,45 @@ public class GUI extends JFrame implements ActionListener
 			return output;
 		}
 
+		public void updateGraph()
+		{
+			ignoreChange = true;
 
-		private XYDataset createDataset(int index, String datasetName, double value, RegularTimePeriod period, int domain)
+			seriesCount = sunData.size();
+			datasets = new TimeSeriesCollection[seriesCount];
+			series = new TimeSeries[seriesCount];
+
+			XYDataset[] datasetArray = new XYDataset[seriesCount];
+			model = new DataTableModel(seriesCount);
+			localTable.setModel(model);
+
+			for (int i = 0; i < seriesCount; i++)
+			{
+				datasetArray[i] = getDataset(i, "Day " + (i + 1), new Minute(), 96);
+				plot.setDataset(i, datasetArray[i]);
+				plot.setRenderer(i, new XYLineAndShapeRenderer(true, false));
+				localTable.getModel().setValueAt(plot.getDataset(i).getSeriesKey(0), i, 0);
+				localTable.getModel().setValueAt(new Double("0.00"), i, 1);
+				localTable.getModel().setValueAt(new Double("0.00"), i, 2);
+			}
+
+			Object localObject = new DateCellRenderer(new SimpleDateFormat("HH:mm:ss (hh:mm:ss aa)"));
+			NumberCellRenderer localRenderer = new NumberCellRenderer();
+			localTable.getColumnModel().getColumn(1).setCellRenderer((TableCellRenderer)localObject);
+			localTable.getColumnModel().getColumn(2).setCellRenderer(localRenderer);
+
+			ignoreChange = false;
+		}
+
+		private XYDataset getDataset(int index, String datasetName, RegularTimePeriod period, int domain)
 		{
 			series[index] = new TimeSeries(datasetName);
 			RegularTimePeriod localTime = period;
-			double d = value;
 
 			for (int i = 0; i < domain; i++)
 			{
-				series[index].add(localTime, d);
+				series[index].add(localTime, sunData.get(index)[i]);
 				localTime = localTime.next();
-				d *= (1.0 + (Math.random() - 0.495) / 10.0);
 			}
 
 			datasets[index] = new TimeSeriesCollection();
@@ -168,6 +173,11 @@ public class GUI extends JFrame implements ActionListener
 		public void chartChanged(ChartChangeEvent e)
 		{
 			if (chartPanel == null)
+			{
+				return;
+			}
+
+			if (ignoreChange)
 			{
 				return;
 			}
@@ -229,7 +239,7 @@ public class GUI extends JFrame implements ActionListener
 		}
 	}
 
-	private static class ButtonPanel extends JPanel
+	private class ButtonPanel extends JPanel
 	{
 		public ButtonPanel()
 		{
@@ -271,11 +281,12 @@ public class GUI extends JFrame implements ActionListener
 				try
 				{
 					sunData = ReadData.RD(selectedFile);
-					// TODO: Update graph method
+					theGraph.updateGraph();
 					repaint();
 				}
 				catch (Exception x)
 				{
+					x.printStackTrace();
 					JOptionPane.showMessageDialog(null, x.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
 				}
 			}
