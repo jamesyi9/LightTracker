@@ -136,7 +136,14 @@ public class GUI extends JFrame implements ActionListener
 
 			for (int i = 0; i < seriesCount; i++)
 			{
-				datasetArray[i] = getDataset(i, "Day " + (i + 1), new Minute(), 96);
+				if (i != (seriesCount - 1))
+				{
+					datasetArray[i] = getDataset(i, "Day " + (i + 1), new Minute(), 96);
+				}
+				else if (i == (seriesCount - 1))
+				{
+					datasetArray[i] = getDataset(i, "Prediction", new Minute(), 96);
+				}
 				plot.setDataset(i, datasetArray[i]);
 				plot.setRenderer(i, new XYLineAndShapeRenderer(true, false));
 				localTable.getModel().setValueAt(plot.getDataset(i).getSeriesKey(0), i, 0);
@@ -286,7 +293,6 @@ public class GUI extends JFrame implements ActionListener
 				}
 				catch (Exception x)
 				{
-					x.printStackTrace();
 					JOptionPane.showMessageDialog(null, x.getMessage(), "File Error", JOptionPane.ERROR_MESSAGE);
 				}
 			}
