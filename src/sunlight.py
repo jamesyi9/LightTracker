@@ -6,13 +6,13 @@ GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 DEBUG = 1
 
-PERIOD = 60
+PERIOD = 1
 
 def RCtime (RCpin):
     reading = 0
     GPIO.setup(RCpin, GPIO.OUT)
     GPIO.output(RCpin, GPIO.LOW)
-    time.sleep(0.1)
+    time.sleep(0.01)
 
     GPIO.setup(RCpin, GPIO.IN)
     while (GPIO.input(RCpin) == GPIO.LOW):
@@ -20,14 +20,16 @@ def RCtime (RCpin):
     return reading
 
 try:
-    with open ("sunlightData.txt", "a") as file:
+    with open ("../data/data.txt", "a") as file:
         dataPoints = 0
         while (dataPoints < 96):
-            r18 = RCtime(18)
-            r23 = RCtime(23)
-            r25 = RCtime(25)
-            s = str((r18 + r23 + r25) / 3)
-            file.write(s + '\n')
+            value = RCtime(18)
+            if value <= 100000:
+                value = 100000 - value
+            elif value > 100000:
+                value = 0
+            print 'Value at time period ', dataPoints, ' is ', value
+            file.write(str(value) + '\n')
             dataPoints = dataPoints + 1
             time.sleep(PERIOD)
         file.write("\n")

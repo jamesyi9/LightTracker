@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import org.rosuda.JRI.*;
+
 public class ReadData
 {
 	public static List<double[]> RD(String fileName) throws Exception
@@ -15,9 +17,6 @@ public class ReadData
 		Path filePath = Paths.get(fileName);
 		BufferedReader fileReader = Files.newBufferedReader(filePath);
 		List<String> inputStrings = new ArrayList<String>();
-
-		double[] arimaInput = new double[96];
-		int[] arimaOutput;
 		double[] predictionData = new double[96];
 
 		try
@@ -46,36 +45,40 @@ public class ReadData
 					else if (j != 96)
 					{
 						scannedLine = new Scanner(inputStrings.get(i * 97 + j));
-						dataPoints[j] = Double.parseDouble(scannedLine.next());
+						dataPoints[j] = Double.parseDouble(scannedLine.next()) / 1000;
 					}
 				}
 
 				output.add(dataPoints);
 			}
 
-			// These for-loops average the current days for ARIMA
-			// This is done because ARIMA can only take in one dataset
-			for (int x = 0; x < 96; x++)
+			String directory = System.getProperty("user.dir") + "/data/data.txt";
+			directory = directory.replace("\\", "/");
+			System.out.println(directory);
+			Rengine re = new Rengine(null, false, null);
+			System.out.println("Regine created, waiting for R");
+			
+			if (!re.waitForR())
 			{
-				arimaInput[x] = 0;
-
-				for (int y = 0; y < days; y++)
-				{
-					arimaInput[x] += output.get(y)[x];
-				}
-
-				arimaInput[x] = arimaInput[x] / days;
+				System.out.println("Cannot load R");
 			}
 
-			// TODO: Fix Arima
-			ARIMA prediction = new ARIMA(arimaInput);
-			arimaOutput = prediction.getARIMAmodel(); 
+			re.eval("library(forecast);");
+			re.eval("data<-scan("+"\""+directory+"\""+",skip=1);");
+			re.eval("datats<-data");
+			re.eval("arima<-auto.arima(datats);");
+			re.eval("fcast<-forecast(arima,h=96);");
 
-			for (int c = 0; c < 96; c++)
+			REXP fs = re.eval("fcast$x");
+			double[] forecast = fs.asDoubleArray();
+			
+			for (int i = 0; i < forecast.length; i++)
 			{
-				predictionData[c] = (double)arimaOutput[c];
+				// System.out.println(forecast[i]);
 			}
 
+			re.end();
+			predictionData = forecast;
 			output.add(predictionData);
 		}
 		catch (IOException x)
